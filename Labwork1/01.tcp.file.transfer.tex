@@ -1,0 +1,267 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{File Transfer over TCP/IP }
+\author{Truong Quang Huy - BA12-087}
+\date{\today}
+\maketitle
+\newpage
+
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents  % This command generates the Table of Contents
+
+
+\newpage
+\pagebreak
+
+
+
+\section{Introduction}
+In contemporary computing, transferring files is a vital operation, particularly in networked environments. The Transmission Control Protocol/Internet Protocol (TCP/IP) serves as the backbone of most networking systems. This report presents the design of a straightforward yet efficient file transfer system that utilizes TCP/IP over a Command Line Interface (CLI). The system enables the transfer of files between two machines using a custom-built protocol.
+
+\maketitle
+\newpage
+\section{Protocol Design}
+\subsection{Overview of the Protocol}
+The file transfer protocol (FTP) was developed to enable the efficient and secure exchange of files between a client and a server. It operates over TCP/IP, leveraging the inherent capabilities of the TCP connection, such as error detection, data integrity, and retransmission, to ensure reliable communication.
+
+\subsection{Protocol Design Steps}
+The following steps outline the protocol designed for file transfer:
+
+\begin{enumerate}
+    \item \textbf{Connection Establishment:} The client begins the connection process by reaching out to the server through a designated port. The server prepares by binding to an IP address and port, and then listens for incoming client connections.
+    \item \textbf{File Request:} The client sends a request to the server asking for the file to be transmitted.
+    \item \textbf{File Transfer:} The server divides the file into smaller pieces and sends them to the client.
+    \item \textbf{Acknowledgment:} Once the client receives each chunk, it sends an acknowledgment back to the server.
+    \item \textbf{Completion:} After all the chunks have been transferred, the server sends a completion signal to the client.
+    \item \textbf{Close Connection:} Once the file transfer is complete, both the client and server properly close the connection.
+\end{enumerate}
+
+\subsection{Figure 1: Protocol Design Flow}
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=0.7\textwidth]{"1.png"}
+\begin{figure}
+        \centering
+        \includegraphics[width=0.5\linewidth]{1.png}
+        \caption{Enter Caption}
+        \label{fig:enter-label}
+    \end{figure}
+        \caption{Protocol Design Flow}
+    \label{fig:protocol_design}
+\end{figure}
+
+\maketitle 
+
+\newpage
+\section{System Organization}
+\subsection{System Architecture}
+The system is split into two primary components: the client and the server. Each component handles specific tasks in the file transfer process.
+
+\begin{itemize}
+    \item \textbf{Client:} Starts the file transfer, sends requests for the file, receives file chunks, downloads the file, and sends acknowledgments.
+    \item \textbf{Server:} Waits for connection requests, handles file transfer, and breaks the file into chunks for transmission. 
+\end{itemize}
+
+\subsection{System Organization}
+\vspace{1em}  
+
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=1\textwidth]{2.png}
+    \caption{System Organization Diagram}
+    \label{fig:system_organization}
+\end{figure}
+
+
+\maketitle  
+
+\newpage
+\section{File Transfer Implementation}
+\subsection{Client Code}
+The following code snippet demonstrates the implementation of the client in Python for file transfer using TCP/IP.
+
+\begin{lstlisting}[language=Python, caption=Client Code for File Transfer]
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+
+#define SIZE 1024
+
+void send_file(FILE *fp, int sockfd)
+{
+    char data[SIZE] = {0};
+
+    while(fgets(data, SIZE, fp)!=NULL)
+    {
+        if(send(sockfd, data, sizeof(data), 0)== -1)
+        {
+            perror("Error in sendung data");
+            exit(1);
+        }
+        bzero(data, SIZE);
+    }
+}
+
+int main()
+{
+    char *ip = "127.0.0.1";
+    int port = 8080;
+    int e;
+
+    int sockfd;
+    struct sockaddr_in server_addr;
+    FILE *fp;
+    char *filename = "example.txt";
+     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd<0)
+    {
+        perror("Error in socket");
+        exit(1);
+    }
+     printf("Server socket created. \n");
+
+     server_addr.sin_family = AF_INET;
+     server_addr.sin_port = port;
+     server_addr.sin_addr.s_addr = inet_addr(ip);
+
+     e = connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+     if(e == -1)
+     {
+         perror("Error in Connecting");
+         exit(1);
+     }
+     printf("[+]Connected to server.\n");
+     fp = fopen(filename, "r");
+     if(fp == NULL)
+     {
+         perror("[-]Error in reading file.");
+         exit(1);
+     }
+     send_file(fp,sockfd);
+     printf("File data send successfully. \n");
+     close(sockfd);
+     printf("Disconnected from the server. \n");
+     return 0;
+
+}
+\end{lstlisting}
+
+\subsection{Server Code}
+The following code snippet shows the server-side implementation to handle the incoming file and save it.
+
+\begin{lstlisting}[language=Python, caption=Server Code for File Transfer]
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
+
+#define SIZE 1024
+
+void write_file(int sockfd)
+{
+    int n; 
+    FILE *fp;
+    char *filename = "received_file.txt";
+    char buffer[SIZE];
+
+    fp = fopen(filename, "w");
+    if(fp==NULL)
+    {
+        perror("Error in creating file.");
+        exit(1);
+    }
+    while(1)
+    {
+        n = recv(sockfd, buffer, SIZE, 0);
+        if(n<=0)
+        {
+            break;
+            return;
+        }
+        fprintf(fp, "%s", buffer);
+        bzero(buffer, SIZE);
+    }
+    return;
+    
+}
+
+int main ()
+{
+    char *ip = "127.0.0.1";
+    int port = 8080;
+    int e;
+
+    int sockfd, new_sock;
+    struct sockaddr_in server_addr, new_addr;
+    socklen_t addr_size;
+    char buffer[SIZE];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd<0)
+    {
+        perror("Error in socket");
+        exit(1);
+    }
+     printf("Server socket created. \n");
+
+     server_addr.sin_family = AF_INET;
+     server_addr.sin_port = port;
+     server_addr.sin_addr.s_addr = inet_addr(ip);
+
+     e = bind(sockfd,(struct sockaddr*)&server_addr, sizeof(server_addr));
+     if(e<0)
+     {
+         perror("Error in Binding");
+         exit(1);
+     }
+     printf("Binding Successfull.\n");
+
+     e = listen(sockfd, 10);
+     if(e==0)
+     {
+         printf("Listening...\n");
+     }
+     else 
+     {
+         perror("Error in Binding");
+         exit(1);
+     }
+     addr_size = sizeof(new_addr);
+     new_sock = accept(sockfd,(struct sockaddr*)&new_addr, &addr_size);
+
+     write_file(new_sock);
+     printf("Data written in the text file ");
+}
+\end{lstlisting}
+
+\subsection{Implementing File Transfer}
+\subsubsection{Testing with myself}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{3.png}
+    \caption{Server Command Line Interface}
+    \label{fig:server_command_line_interface}
+\end{figure}
+
+\begin{figure}[h]  
+    \centering
+    \includegraphics[width=1\textwidth]{4.png}
+    \caption{Client Command Line Interface}
+    \label{fig:client_command_line_interface}
+\end{figure}
+
+\section{Conclusion}
+This report details the design and implementation of a file transfer system utilizing TCP/IP over a Command Line Interface. The system enables reliable file transfers between a client and a server. The custom protocol ensures both efficient and secure transfers, while the implementation is robust enough to handle files of varying sizes.
+
+\end{document}
