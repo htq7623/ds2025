@@ -11,4 +11,4 @@ Student Info
 
 * Student Name: Trương Quang Huy 
 * Student ID: BA12-087
-* Student Group ID: 
+* Student Group ID: 10
